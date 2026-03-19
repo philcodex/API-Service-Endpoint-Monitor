@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0d0f14;
+            --surface: #13161d;
+            --surface2: #1a1e28;
+            --border: #252933;
+            --border2: #2e3444;
+            --text: #e8eaf0;
+            --muted: #6b7280;
+            --accent: #4f8ef7;
+            --green: #22c55e;
+            --red: #ef4444;
+            --amber: #f59e0b;
+            --mono: 'JetBrains Mono', monospace;
+            --sans: 'DM Sans', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            min-height: 100vh;
+            padding: 48px 24px;
+        }
+
+        .wrap { max-width: 720px; margin: 0 auto; }
+
+        /* Header */
+        .header { margin-bottom: 40px; }
+        .header-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+        h1 {
+            font-family: var(--mono);
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--text);
+        }
+        .version {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--accent);
+            background: rgba(79,142,247,0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(79,142,247,0.2);
+        }
+        .subtitle { font-size: 13px; color: var(--muted); }
+
+        /* Stats bar */
+        .stats {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--mono);
+            font-size: 12px;
+            padding: 6px 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--muted);
+        }
+        .stat-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .stat-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .stat-dot.red { background: var(--red); }
+        .stat-dot.grey { background: var(--muted); }
+        .stat strong { color: var(--text); }
+
+        /* Add URL form */
+        .add-form {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .add-form input {
+            flex: 1;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 6px;
+            padding: 9px 14px;
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .add-form input::placeholder { color: var(--muted); }
+        .add-form input:focus { border-color: var(--accent); }
+        .btn {
+            font-family: var(--sans);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 9px 18px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn-add {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-add:hover { background: #6ba3f9; }
+        .btn-add:active { transform: scale(0.97); }
+        .btn-all {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border2);
+        }
+        .btn-all:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Service cards */
+        .card-list { display: flex; flex-direction: column; gap: 6px; }
+
+        .card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            transition: border-color 0.2s;
+            animation: slideIn 0.2s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card:hover { border-color: var(--border2); }
+        .card.online { border-left: 3px solid var(--green); }
+        .card.offline { border-left: 3px solid var(--red); }
+
+        .status-dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--muted);
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+        .status-dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+        .status-dot.offline { background: var(--red); }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .card-url {
+            flex: 1;
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--text);
+            word-break: break-all;
+            min-width: 0;
+        }
+
+        .card-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+            flex-shrink: 0;
+        }
+        .latency {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--muted);
+            height: 14px;
+        }
+        .latency.fast { color: var(--green); }
+        .latency.slow { color: var(--amber); }
+
+        .card-actions { display: flex; gap: 6px; align-items: center; }
+
+        .btn-check {
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 5px;
+            border: 1px solid var(--border2);
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn-check:hover { color: var(--accent); border-color: var(--accent); }
+        .btn-check:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-check.online { color: var(--green); border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.05); }
+        .btn-check.offline { color: var(--red); border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.05); }
+        .btn-check.checking { color: var(--accent); border-color: rgba(79,142,247,0.3); }
+
+        .btn-remove {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: all 0.15s;
+            opacity: 0;
+        }
+        .card:hover .btn-remove { opacity: 1; }
+        .btn-remove:hover { color: var(--red); background: rgba(239,68,68,0.1); }
+
+        /* HTTP status badge */
+        .status-badge {
+            font-family: var(--mono);
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-weight: 700;
+            display: none;
+        }
+        .status-badge.show { display: inline-block; }
+        .status-badge.ok { background: rgba(34,197,94,0.1); color: var(--green); }
+        .status-badge.err { background: rgba(239,68,68,0.1); color: var(--red); }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--muted);
+            font-size: 13px;
+            font-family: var(--mono);
+        }
+
+        /* Check-all row */
+        .toolbar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .add-form { flex-wrap: wrap; }
+            .stats { gap: 6px; }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="header">
+        <div class="header-top">
+            <h1>service_monitor</h1>
+            <span class="version">v2.0</span>
+        </div>
+        <p class="subtitle">HTTP endpoint checker — enter any domain or URL to monitor</p>
+    </div>
+
+    <div class="stats">
+        <div class="stat"><span class="stat-dot green"></span><strong id="s-online">0</strong>&nbsp;online</div>
+        <div class="stat"><span class="stat-dot red"></span><strong id="s-offline">0</strong>&nbsp;offline</div>
+        <div class="stat"><span class="stat-dot grey"></span><strong id="s-unchecked">0</strong>&nbsp;unchecked</div>
+    </div>
+
+    <div class="add-form">
+        <input id="domain-input" type="text" placeholder="Enter domain or URL — e.g. stripe.com or https://api.example.com/health" />
+        <button class="btn btn-add" onclick="addEntry()">+ Add</button>
+    </div>
+
+    <div class="toolbar">
+        <button class="btn btn-all" onclick="checkAll()">Check all ↻</button>
+    </div>
+
+    <div class="card-list" id="card-list"></div>
+</div>
+
+<script>
+const defaults = [
+    'https://www.google.com',
+    'https://api.github.com',
+    'https://support.stripe.com',
+    'https://httpbin.org/status/500',
+    'https://httpbin.org/status/404',
+];
+
+let entries = defaults.map((url, i) => ({ id: i+1, url, state: 'idle', latency: null, statusCode: null }));
+let nextId = entries.length + 1;
+
+function normalise(input) {
+    input = input.trim();
+    if (!input) return null;
+    if (!/^https?:\/\//i.test(input)) input = 'https://' + input;
+    try { new URL(input); return input; } catch { return null; }
+}
+
+function addEntry() {
+    const raw = document.getElementById('domain-input').value;
+    const url = normalise(raw);
+    if (!url) { shake(document.getElementById('domain-input')); return; }
+    if (entries.find(e => e.url === url)) { shake(document.getElementById('domain-input')); return; }
+    entries.push({ id: nextId++, url, state: 'idle', latency: null, statusCode: null });
+    document.getElementById('domain-input').value = '';
+    render();
+    updateStats();
+}
+
+function shake(el) {
+    el.style.borderColor = 'var(--red)';
+    setTimeout(() => el.style.borderColor = '', 800);
+}
+
+function removeEntry(id) {
+    entries = entries.filter(e => e.id !== id);
+    render(); updateStats();
+}
+
+async function checkUrl(id) {
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
+    entry.state = 'checking';
+    entry.latency = null;
+    renderCard(entry);
+
+    const start = performance.now();
+    try {
+        await fetch(entry.url, { mode: 'no-cors', cache: 'no-cache' });
+        entry.latency = Math.round(performance.now() - start);
+        entry.state = 'online';
+    } catch {
+        entry.latency = null;
+        entry.state = 'offline';
+    }
+    renderCard(entry);
+    updateStats();
+
+    setTimeout(() => {
+        if (entry.state !== 'idle') { entry.state = 'idle'; renderCard(entry); }
+    }, 6000);
+}
+
+async function checkAll() {
+    await Promise.all(entries.map(e => checkUrl(e.id)));
+}
+
+function latencyClass(ms) {
+    if (!ms) return '';
+    return ms < 300 ? 'fast' : 'slow';
+}
+
+function renderCard(entry) {
+    const existing = document.getElementById('card-' + entry.id);
+    const html = cardHTML(entry);
+    if (existing) {
+        existing.outerHTML = html;
+    }
+}
+
+function cardHTML(entry) {
+    const stateLabel = entry.state === 'checking' ? '…checking' : entry.state === 'online' ? '✓ online' : entry.state === 'offline' ? '✗ offline' : 'check';
+    const btnClass = entry.state === 'checking' ? 'checking' : entry.state === 'online' ? 'online' : entry.state === 'offline' ? 'offline' : '';
+    const dotClass = entry.state === 'online' ? 'online' : entry.state === 'offline' ? 'offline' : '';
+    const cardClass = entry.state === 'online' ? 'online' : entry.state === 'offline' ? 'offline' : '';
+    const lat = entry.latency ? entry.latency + ' ms' : '';
+    const latClass = latencyClass(entry.latency);
+    const disabled = entry.state === 'checking' ? 'disabled' : '';
+
+    return `<div class="card ${cardClass}" id="card-${entry.id}">
+        <span class="status-dot ${dotClass}"></span>
+        <span class="card-url">${entry.url}</span>
+        <div class="card-meta">
+            <span class="latency ${latClass}">${lat}</span>
+        </div>
+        <div class="card-actions">
+            <button class="btn-check ${btnClass}" onclick="checkUrl(${entry.id})" ${disabled}>${stateLabel}</button>
+            <button class="btn-remove" onclick="removeEntry(${entry.id})" title="Remove">×</button>
+        </div>
+    </div>`;
+}
+
+function render() {
+    const list = document.getElementById('card-list');
+    if (!entries.length) {
+        list.innerHTML = '<div class="empty">// no endpoints — add one above</div>';
+        return;
+    }
+    list.innerHTML = entries.map(cardHTML).join('');
+}
+
+function updateStats() {
+    document.getElementById('s-online').textContent = entries.filter(e => e.state === 'online').length;
+    document.getElementById('s-offline').textContent = entries.filter(e => e.state === 'offline').length;
+    document.getElementById('s-unchecked').textContent = entries.filter(e => e.state === 'idle').length;
+}
+
+document.getElementById('domain-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addEntry();
+});
+
+render();
+updateStats();
+</script>
+</body>
+</html>
